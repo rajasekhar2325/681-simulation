@@ -1,0 +1,11 @@
+cores = 4
+runs = 10
+distribution = normal
+mean_service_time = 50
+mean_arrival_time = 80
+mean_timeout_time = 100
+mean_think_time = 300
+time_quantum = 5
+context_switching_time = 2
+
+
