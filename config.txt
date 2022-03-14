@@ -1,11 +1,12 @@
 cores = 4
-runs = 10
+runs = 5
 distribution = normal
-mean_service_time = 50
-mean_arrival_time = 80
-mean_timeout_time = 100
-mean_think_time = 300
-time_quantum = 5
-context_switching_time = 2
+mean_service_time = 5
+mean_arrival_time = 10
+mean_timeout_time = 25
+mean_think_time = 20
+time_quantum = 2
+context_switching_time = 1
+max_no_thread = 100
 
 

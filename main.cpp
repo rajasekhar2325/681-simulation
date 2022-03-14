@@ -15,6 +15,7 @@ double mean_think_time;
 double mean_timeout_time;
 double time_quantum;
 double context_switch_time;
+int max_no_threads;
 
 enum type_of_event
 {
@@ -49,6 +50,8 @@ void read_config_file()
             time_quantum = stoi(line.substr(line.find('=') + 2));
         if (line.substr(0, line.find('=') - 1) == "context_switching_time")
             context_switch_time = stoi(line.substr(line.find('=') + 2));
+        if (line.substr(0, line.find('=') - 1) == "max_no_threads")
+            max_no_threads = stoi(line.substr(line.find('=') + 2));
     }
     // cout << no_of_cores << endl;
     // cout << mean_serv_time << endl;
@@ -83,11 +86,12 @@ class event
 public:
     type_of_event eventType;
     double eventStartTime;
-
-    event(type_of_event et, double est)
+    thread associated_thread;
+    event(type_of_event et, double est, thread t)
     {
         eventType = et;
         eventStartTime = est;
+        associated_thread = t;
     }
 };
 class compare
@@ -99,16 +103,24 @@ public:
     }
 };
 
-priority_queue<event, vector<event>, compare> eventList;
-
 class request
 {
 public:
     int req_id;
-    double req_arrival_time;
     double req_service_time;
+    double req_arrival_time;
     double req_rem_serv_time;
     double req_timeout_time;
+    request()
+    {
+    }
+    request(int id, double rst, double rat, double tot)
+    {
+        req_id = id;
+        req_service_time = rst;
+        req_arrival_time = rat;
+        req_timeout_time = tot;
+    }
 };
 
 class thread
@@ -118,7 +130,9 @@ public:
     int thread_id;
     int assigned_core_id;
     string status;
-
+    thread()
+    {
+    }
     thread(request r, int id)
     {
         req = r;
@@ -131,7 +145,6 @@ public:
 class threadpool
 {
 public:
-    int max_no_threads = 100;
     queue<int> threadQ;
     threadpool()
     {
@@ -159,29 +172,69 @@ public:
 
 class core
 {
-    public:
+public:
     int core_id;
+    queue<thread> jobQ;
+    string state;
+    core(int id)
+    {
+        core_id = id;
+    }
 };
 
 int main()
 {
-    queue<request> requestQueue;
     read_config_file();
-    cout << get_random(mean_serv_time) << endl;
-    cout << "hello world";
-    for (int i = 0; i < 5; i++)
+    // cout << get_random(mean_serv_time) << endl;
+    // cout << "hello world";
+    // for (int i = 0; i < 5; i++)
+    // {
+    //     type_of_event test;
+    //     test = arrival;
+    //     event e1 = event(test, get_random(mean_arrv_time));
+    //     // cout << get_random(mean_arrv_time);
+    //     eventList.push(e1);
+    // }
+    // while (!eventList.empty())
+    // {
+    //     event test = eventList.top();
+    //     cout << test.eventStartTime << endl;
+    //     eventList.pop();
+    // }
+
+    while (no_of_runs--)
     {
-        type_of_event test;
-        test = arrival;
-        event e1 = event(test, get_random(mean_arrv_time));
-        // cout << get_random(mean_arrv_time);
-        eventList.push(e1);
-    }
-    while (!eventList.empty())
-    {
-        event test = eventList.top();
-        cout << test.eventStartTime << endl;
-        eventList.pop();
+        int numReqCompleted = 0;
+        priority_queue<event, vector<event>, compare> eventList;
+        queue<request> requestQ;
+        vector<core> coreList;
+        for (int i = 1; i <= no_of_cores; i++)
+            coreList[i] = core(i);
+        threadpool tpool = threadpool();
+        int no_of_req = 200;
+        double simTime = 0;
+        for (int i = 1; i <= no_of_req; i++)
+            requestQ.push(request(i, get_random(mean_serv_time), simTime + 1, get_random(mean_timeout_time)));
+        for (int i = 1; i <= no_of_req; i++)
+        {
+            if (tpool.poolNotEmpty())
+            {
+                thread t = tpool.getFreeThread(requestQ.front());
+                eventList.push(event(arrival, simTime + 1, t));
+                requestQ.pop();
+            }
+            else
+                break;
+        }
+        while (numReqCompleted < 1000)
+        {
+            event curr_event = eventList.top();
+            if (curr_event.eventType = arrival)
+            {
+                thread currThread = eventList.top().associated_thread;
+                coreList[currThread.assigned_core_id].jobQ.push(currThread);
+            }
+        }
     }
     return 0;
 }
