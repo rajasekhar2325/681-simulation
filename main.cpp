@@ -62,7 +62,8 @@ void read_config_file()
 
 double get_random(double metric)
 {
-    default_random_engine generator;
+    random_device rd;
+    default_random_engine generator(rd());
     // cout << dist_type << " " << dist_type.size() << endl;
     if (dist_type == "constant")
     {
@@ -211,7 +212,7 @@ int main()
         queue<request> requestQ;
         vector<core> coreList;
         for (int i = 1; i <= no_of_cores; i++)
-            coreList[i] = core(i);
+            coreList.push_back(core(i));
         threadpool tpool = threadpool();
         int no_of_req = 200;
         double simTime = 0;
