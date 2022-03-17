@@ -22,7 +22,8 @@ enum type_of_event
     arrival = 1,
     quantum_done = 2,
     departure = 3,
-    timeout = 4
+    timeout = 4,
+    contextSwitch =5
 };
 
 void read_config_file()
@@ -94,6 +95,7 @@ public:
         associated_thread = t;
     }
 };
+
 class compare
 {
 public:
@@ -231,8 +233,39 @@ int main()
             event curr_event = eventList.top();
             if (curr_event.eventType = arrival)
             {
-                thread currThread = eventList.top().associated_thread;
+                thread currThread = curr_event.associated_thread;
                 coreList[currThread.assigned_core_id].jobQ.push(currThread);
+            }
+            // for loop of cores == 1. check core statues
+            // 2. if idle == pop jobQ and assign eventType
+            //3. arrival = core busy, take delta t and push to eventlist of type time qunatum; check for timeout and update badrequest.
+            // 4. time quantum = check rem service time with time quantum and shedule departure event to eventlist
+            // else schedule tq to eventlist
+            // 5. departure = calc waiting time, free thread and add it to pool, add new arrival to eventLIst, completed++ , method to map req to thread and push to eventlist
+            //
+            // for(int i=0;i<no_of_cores;i++){
+            //     if (coreList[i].state=="idle")
+            //     {
+            //         thread temp = coreList[i].jobQ.front();
+            //         if (temp.req.req_rem_serv_time < time_quantum){
+            //             eventList.push(event(departure,simTime,temp));
+            //         }
+            //     }
+            // }
+            if (curr_event.eventType = quantum_done)
+            {
+                if (curr_event.associated_thread.req.req_rem_serv_time < time_quantum)
+                    eventList.push(event(departure, simTime + 1, curr_event.associated_thread));
+                else
+                {
+                    eventList.push(event(contextSwitch, simTime + 1, curr_event.associated_thread));
+                }
+            }
+                  if (curr_event.eventType = contextSwitch)
+            {
+            }
+            if (curr_event.eventType = departure)
+            {
             }
         }
     }

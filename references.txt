@@ -1,3 +1,9 @@
 https://www.cplusplus.com/reference/random/
 https://stackoverflow.com/questions/19535644/how-to-use-the-priority-queue-stl-for-objects
 https://www.geeksforgeeks.org/c-classes-and-objects/
+
+
+
+
+200 -> rQ
+100 thread -> 100 request thread
