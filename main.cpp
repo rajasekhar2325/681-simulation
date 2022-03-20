@@ -65,7 +65,8 @@ void read_config_file()
 
 double get_random(double metric)
 {
-    default_random_engine generator;
+    random_device rd;
+    default_random_engine generator(rd());
     // cout << dist_type << " " << dist_type.size() << endl;
     if (dist_type == "constant")
     {
