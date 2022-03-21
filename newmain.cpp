@@ -109,7 +109,7 @@ public:
             thread tmp = tpool.getFreeThread(curr_event.req);
             curr_event.thrd_id = tmp.thread_id;
             cout << "assigned thread to event.  ThreadID " << curr_event.thrd_id << endl;
-            int core_id = tmp.assigned_core_id;
+            int core_id = (tmp.thread_id)%no_of_cores;
             if (coreList[core_id].status == idle)
             {
                 coreList[core_id].status = busy;
@@ -117,10 +117,12 @@ public:
                 type_of_event type;
                 double eventTime = 0.0;
                 cout << "schedulenextevent: " << tmp.req->req_id << endl;
-                coreList[core_id].simTime = max(coreList[core_id].simTime, curr_event.eventStartTime);
+                if(coreList[core_id].simTime < curr_event.eventStartTime)
+                    coreList[core_id].simTime = curr_event.eventStartTime;
+                // coreList[core_id].simTime = max(coreList[core_id].simTime, curr_event.eventStartTime);
                 if (tmp.req->req_rem_serv_time <= time_quantum)
                 {
-                    cout << "adding departure event" << endl;
+                    cout << "adding departure event " << endl;
                     type = departure;
                     eventTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time;
                     coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
@@ -128,7 +130,7 @@ public:
                 }
                 else
                 {
-                    cout << "adding quantum-done event" << endl;
+                    cout << "adding quantum-done event " << endl;
                     type = quantum_done;
                     eventTime = coreList[core_id].simTime + time_quantum;
                     curr_event.req->req_rem_serv_time -= time_quantum;
@@ -158,7 +160,7 @@ public:
         priority_queue<event, vector<event>, compare> temp = eventList;
         while (!temp.empty())
         {
-            cout << temp.top().req->req_id << " " << temp.top().eventType << " " << temp.top().eventStartTime << " " << temp.top().req->req_rem_serv_time << "||";
+            cout << temp.top().req->req_id <<":" << (temp.top().thrd_id)%no_of_cores << " " << temp.top().eventType << " " << temp.top().eventStartTime << " " << temp.top().req->req_rem_serv_time << "||";
             temp.pop();
         }
         cout << "\n";
@@ -195,7 +197,6 @@ public:
         curr_event.eventStartTime  = curr_event.req->req_arrival_time;
         curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time);
         curr_event.req->req_timeout_time = get_random(mean_timeout_time);
-        curr_event.thrd_id = -1;
         eventList.push(curr_event);
         printeventList();
 
@@ -220,7 +221,6 @@ public:
     void scheduleNextEvent(int core_id)
     {
         // not able to reuse event object. so creating new event for front thread.
-        cout << core_id << " " << "Hello\n";
         thread tmp = coreList[core_id].jobQ.front();
         type_of_event type;
         double eventTime = 0.0;
@@ -230,15 +230,18 @@ public:
             type = departure;
             eventTime = coreList[core_id].simTime + tmp.req->req_rem_serv_time;
             coreList[core_id].simTime += tmp.req->req_rem_serv_time;
+            tmp.req->req_rem_serv_time = 0;
         }
         else
         {
             type = quantum_done;
             eventTime = coreList[core_id].simTime + time_quantum;
             coreList[core_id].simTime += time_quantum;
+            tmp.req->req_rem_serv_time -= time_quantum;
         }
         coreList[core_id].simTime += context_switch_time;
-        event next_event = event(type, eventTime, tmp.req);
+        event next_event(type, eventTime, tmp.req);
+        next_event.thrd_id = tmp.thread_id;
         cout << "pushing event: " << type << endl;
         eventList.push(next_event);
         //raj: should we pop thread in jobq?
@@ -249,16 +252,26 @@ public:
         // logic for quantum done.
         event curr_event = eventList.top();
         eventList.pop();
-        cout << "handleContextswitch: currevent: " << curr_event.req->req_id << " " << endl;
         int core_id = (curr_event.thrd_id % no_of_cores);
+        cout << "handleContextswitch: currevent: " << curr_event.req->req_id << " " << coreList[core_id].jobQ.size() << endl;
         // Moving front job in jobQ to back
         thread tmp = coreList[core_id].jobQ.front();
         coreList[core_id].jobQ.pop();
         coreList[core_id].jobQ.push(tmp);
 
         // Processing the next job in jobQ
+        cout << coreList[core_id].jobQ.size() << " job queue size on core " << core_id << "\n";
         tmp = coreList[core_id].jobQ.front();
-        coreList[core_id].simTime = max(coreList[core_id].simTime, tmp.req->req_arrival_time);
+        try
+        {
+        if(coreList[core_id].simTime < tmp.req->req_arrival_time)
+            coreList[core_id].simTime = tmp.req->req_arrival_time;
+        }
+        catch(...)
+        {
+            cout << "ERROR HERE\n";
+        }
+        // coreList[core_id].simTime = max(coreList[core_id].simTime, tmp.req->req_arrival_time);
         cout << "tmp rem serv time: " << tmp.req->req_rem_serv_time << endl;
         curr_event.req = tmp.req;
         if (tmp.req->req_rem_serv_time <= time_quantum)
@@ -274,9 +287,9 @@ public:
         }
         else
         {
-            cout << "adding quantum-done event" << coreList[core_id].simTime << endl;
+            cout << "adding quantum-done event " << coreList[core_id].simTime << endl;
             curr_event.eventType = quantum_done;
-            curr_event.eventStartTime = coreList[core_id].simTime + quantum_done;
+            curr_event.eventStartTime = coreList[core_id].simTime + time_quantum;
             curr_event.req->req_rem_serv_time -= time_quantum;
             // coreList[core_id].jobQ.front().req->req_rem_serv_time -= time_quantum;
             eventList.push(curr_event);
@@ -294,10 +307,10 @@ int main()
 
     while (no_of_runs--)
     {
-        Simulation simobj(no_of_cores, 2);
-        while (simobj.numReqCompleted < 4)
+        Simulation simobj(no_of_cores, 200);
+        while (simobj.numReqCompleted < 300)
         {
-            for(int i=1;i<=no_of_cores;i++)
+            for(int i=0;i<no_of_cores;i++)
                 cout << "simtime on core " << i << " : " << simobj.coreList[i].simTime << endl;
             simobj.processNextEventOnCore();
         }
