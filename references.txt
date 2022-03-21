@@ -1,0 +1,4 @@
+https://www.cplusplus.com/reference/random/
+https://stackoverflow.com/questions/19535644/how-to-use-the-priority-queue-stl-for-objects
+https://www.geeksforgeeks.org/c-classes-and-objects/
+https://stackoverflow.com/questions/10150468/how-to-redirect-cin-and-cout-to-files

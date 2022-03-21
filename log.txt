@@ -1,0 +1,53 @@
+1 1 0 1.98805||2 1 1 3.91027||simtime: 0
+handlearrival: currevent: 1 eventStarttime: 0
+assigned thread to event.  ThreadID 1
+adding departure event
+1 3 0.988054 0||2 1 1 3.91027||simtime: 0.988054
+handledeparture: currevent: 1 0.988054
+waiting time: -1
+1 1 0.988054 1.6013||2 1 1 3.91027||simtime: 0.988054
+handlearrival: currevent: 1 eventStarttime: 0.988054
+assigned thread to event.  ThreadID 2
+adding departure event
+2 1 1 3.91027||1 3 1.58936 0||simtime: 1.58936
+handlearrival: currevent: 2 eventStarttime: 1
+assigned thread to event.  ThreadID 3
+adding quantum-done event
+1 3 1.58936 0||2 2 2.58936 2.91027||simtime: 2.58936
+handledeparture: currevent: 1 2.58936
+waiting time: -11.6437
+1 1 1.58936 4.62734||2 2 2.58936 2.91027||simtime: 2.58936
+handlearrival: currevent: 1 eventStarttime: 1.58936
+assigned thread to event.  ThreadID 4
+adding quantum-done event
+2 2 2.58936 2.91027||1 2 3.58936 3.62734||simtime: 3.58936
+handleContextswitch: currevent: 2 
+t1 rem serv time: 2.91027
+adding quantum-done event3.58936
+1 2 3.58936 3.62734||2 2 5.58936 1.91027||simtime: 4.58936
+handleContextswitch: currevent: 1 
+t1 rem serv time: 3.62734
+adding quantum-done event4.58936
+2 2 5.58936 1.91027||1 2 6.58936 2.62734||simtime: 5.58936
+handleContextswitch: currevent: 2 
+t1 rem serv time: 1.91027
+adding quantum-done event5.58936
+1 2 6.58936 2.62734||2 2 7.58936 0.910271||simtime: 6.58936
+handleContextswitch: currevent: 1 
+t1 rem serv time: 2.62734
+adding quantum-done event6.58936
+2 2 7.58936 0.910271||1 2 8.58936 1.62734||simtime: 7.58936
+handleContextswitch: currevent: 2 
+t1 rem serv time: 0.910271
+adding departure event 7.58936
+2 3 8.49963 0||1 2 8.58936 1.62734||simtime: 7.58936
+handledeparture: currevent: 2 7.58936
+waiting time: -8.96461
+schedulenextevent: 2
+pushing event: 2
+2 1 8.49963 5.35762||2 2 8.58936 2.91027||1 2 8.58936 1.62734||simtime: 7.58936
+handlearrival: currevent: 2 eventStarttime: 8.49963
+assigned thread to event.  ThreadID 5
+adding quantum-done event
+2 2 8.58936 2.91027||1 2 8.58936 1.62734||2 2 8.58936 4.35762||simtime: 8.58936
+handleContextswitch: currevent: 2 
