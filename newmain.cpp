@@ -161,6 +161,7 @@ public:
             cout << temp.top().req->req_id << " " << temp.top().eventType << " " << temp.top().eventStartTime << " " << temp.top().req->req_rem_serv_time << "||";
             temp.pop();
         }
+        cout << "\n";
     }
 
     void handleDeparture()
@@ -190,7 +191,8 @@ public:
 
         tpool.addToPool(curr_event.thrd_id);
         curr_event.eventType = arrival;
-        curr_event.req->req_arrival_time = coreList[core_id].simTime + get_random(mean_think_time);
+        curr_event.req->req_arrival_time = curr_event.eventStartTime + get_random(mean_think_time);
+        curr_event.eventStartTime  = curr_event.req->req_arrival_time;
         curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time);
         curr_event.req->req_timeout_time = get_random(mean_timeout_time);
         curr_event.thrd_id = -1;
@@ -293,9 +295,9 @@ int main()
     while (no_of_runs--)
     {
         Simulation simobj(no_of_cores, 2);
-        while (simobj.numReqCompleted < 3)
+        while (simobj.numReqCompleted < 4)
         {
-            for(int i=0;i<no_of_cores;i++)
+            for(int i=1;i<=no_of_cores;i++)
                 cout << "simtime on core " << i << " : " << simobj.coreList[i].simTime << endl;
             simobj.processNextEventOnCore();
         }
