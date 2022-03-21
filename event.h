@@ -14,12 +14,12 @@ class event
 public:
     type_of_event eventType;
     double eventStartTime;
-    request req;
+    request *req;
     int thrd_id;
-    event(type_of_event et, double est, request t)
+    event(type_of_event et, double est, request *t)
     {
         eventType = et;
         eventStartTime = est;
-        req = t;
+        this->req = t;
     }
 };
