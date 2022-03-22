@@ -2,11 +2,13 @@
 
 enum type_of_event
 {
-    arrival = 1,
-    quantum_done = 2,
-    departure = 3,
-    timeout = 4
+    Arrival = 1,
+    Quantum_done = 2,
+    Departure = 3,
+    Timeout = 4
 };
+
+string eventName[]={"Arrival","Quantum_done","Departure","Timeout"};
 
 
 class event
