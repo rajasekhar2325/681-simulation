@@ -13,6 +13,8 @@ double mean_timeout_time;
 double time_quantum;
 double context_switch_time;
 int max_no_threads;
+int no_of_users;
+int total_requests;
 
 void read_config_file()
 {
@@ -41,6 +43,10 @@ void read_config_file()
             context_switch_time = stoi(line.substr(line.find('=') + 2));
         if (line.substr(0, line.find('=') - 1) == "max_no_threads")
             max_no_threads = stoi(line.substr(line.find('=') + 2));
+        if (line.substr(0, line.find('=') - 1) == "users")
+            no_of_users = stoi(line.substr(line.find('=') + 2));
+        if (line.substr(0, line.find('=') - 1) == "simulation_end")
+            total_requests = stoi(line.substr(line.find('=') + 2));
     }
     // cout << no_of_cores << endl;
     // cout << mean_serv_time << endl;

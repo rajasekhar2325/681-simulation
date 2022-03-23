@@ -6,12 +6,14 @@ public:
     int core_id;
     queue<thread> jobQ;
     double simTime;
+    double utilization;
     int status; // 0 - idle and 1 - busy
     core(int id)
     {
         core_id = id;
         status = 0;
         simTime = 0.0;
+        utilization = 0.0;
     }
 
     bool isEmpty()

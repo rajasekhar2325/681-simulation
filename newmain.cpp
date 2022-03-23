@@ -6,7 +6,6 @@
 using namespace std;
 #define idle 0
 #define busy 1
-int drops;
 
 // enum type_of_event
 // {
@@ -64,6 +63,8 @@ class Simulation
 {
 public:
     int numReqCompleted;
+    int goodRequests;
+    int drops;
     priority_queue<event, vector<event>, compare> eventList;
     Buffer buf;
     vector<core> coreList;
@@ -73,6 +74,8 @@ public:
     Simulation(int cores, int no_of_req)
     {
         numReqCompleted = 0;
+        goodRequests = 0;
+        drops = 0;
         waitingTime = 0.0;
         responseTime = 0.0;
         coreList.reserve(cores);
@@ -164,7 +167,11 @@ public:
             if (buf.isFull())
             {
                 drops++;
-                // TODO: next request needs to be created or not?
+                curr_event.req->req_arrival_time = curr_event.eventStartTime + get_random(mean_think_time, 1);
+                curr_event.eventStartTime = curr_event.req->req_arrival_time;
+                curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time, 1);
+                curr_event.req->req_timeout_time = get_random(mean_timeout_time, 1);
+                eventList.push(curr_event);
             }
             else
                 buf.bqu.push(curr_event); //raj; event or req // when it will be processed?
@@ -192,11 +199,14 @@ public:
         event curr_event = eventList.top();
         eventList.pop();
         numReqCompleted++;
+        if(curr_event.eventStartTime-curr_event.req->req_arrival_time <= curr_event.req->req_timeout_time)
+            goodRequests++;
         int core_id = (curr_event.thrd_id % no_of_cores);
         // cout << "handledeparture: currevent: " << curr_event.req->req_id << " " << coreList[core_id].simTime << endl;
         // result << coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time  << endl;
         waitingTime += coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time; //raj + to -
         responseTime += coreList[core_id].simTime - curr_event.req->req_arrival_time;                                   //raj + to -
+        coreList[core_id].utilization += curr_event.req->req_service_time;
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
         // cout << coreList[core_id].simTime << " " << curr_event.req->req_service_time << " " << curr_event.req->req_arrival_time << "\n";
         curr_event.req->req_rem_serv_time = 0;
@@ -222,13 +232,41 @@ public:
         // process buf, add buf top to thread and push to
         if (!buf.isEmpty())
         {
-            event e1 = buf.bqu.front();
-            buf.bqu.pop();
-            if (tpool.poolNotEmpty())
+            if (tpool.poolNotEmpty())  // Redundant check of if because thread got freed on upper block of code
             {
-                thread t1 = tpool.getFreeThread(e1.req);
-                coreList[t1.assigned_core_id].jobQ.push(t1);
-                // check cpu core status and process.EG: logic is similar toArrival request and thread is available from pool
+                event e1 = buf.bqu.front();
+                buf.bqu.pop();
+                thread tmp = tpool.getFreeThread(e1.req);
+                e1.thrd_id = tmp.thread_id;
+                int core_id = e1.thrd_id%no_of_cores;
+                if(coreList[core_id].status = idle)
+                {
+                    coreList[core_id].status = busy;
+                    type_of_event type;
+                    double eventTime = 0.0;
+                    if(coreList[core_id].simTime < e1.eventStartTime)
+                        coreList[core_id].simTime = e1.eventStartTime;
+                    if (tmp.req->req_rem_serv_time <= time_quantum)
+                    {
+                        type = Departure;
+                        eventTime = coreList[core_id].simTime + e1.req->req_rem_serv_time;
+                        coreList[core_id].simTime += e1.req->req_rem_serv_time;
+                        e1.req->req_rem_serv_time = 0;
+                    }
+                    else
+                    {
+                        type = Quantum_done;
+                        eventTime = coreList[core_id].simTime + time_quantum;
+                        e1.req->req_rem_serv_time -= time_quantum;
+                        coreList[core_id].simTime += time_quantum;
+                    }
+                    e1.eventType = type;
+                    e1.eventStartTime = eventTime;
+                    eventList.push(e1);
+                    printlog(coreList[core_id].simTime, e1.eventType, e1.req->req_id, core_id, \
+                                                    e1.req->req_service_time, e1.req->req_rem_serv_time);
+                }
+                coreList[tmp.thread_id%no_of_cores].jobQ.push(tmp);
             }
         }
     }
@@ -345,7 +383,24 @@ trace.open("log.txt");
         // result << "waiting time: " << simobj.waitingTime << endl;
         // result << "avg waiting time: " << simobj.waitingTime / total_requests << endl;
         // result << "response time: " << simobj.responseTime << endl;
-        result << "avg response time: " << simobj.responseTime / total_requests << endl;
+        double total_utilization = 0.0;
+        double total_simualtion_time = 0.0;
+        double avg_utilization = 0.0;
+        double avg_simulation_time = 0.0;
+        for(int i=0;i<no_of_cores;i++)
+        {
+            total_utilization += simobj.coreList[i].utilization;
+            total_simualtion_time += simobj.coreList[i].simTime;
+        }
+        avg_simulation_time = total_simualtion_time/(double)no_of_cores;
+        avg_utilization = total_utilization/(double)no_of_cores;
+        result << "Avg server utilization is: " << avg_utilization/avg_simulation_time << endl;
+        result << "Total request drops: " << simobj.drops << endl;
+        result << "Good throughput: " << ((double)simobj.goodRequests/simobj.coreList[1].simTime)*1000 << endl;
+        result << "Bad throughput: " << ((double)(simobj.numReqCompleted - simobj.goodRequests)/simobj.coreList[1].simTime)*1000 << endl;
+        result << "Total throughput: " << ((double)(simobj.numReqCompleted)/avg_simulation_time)*1000 << endl;
+        result << "avg response time: " << (simobj.responseTime / total_requests)/(double)1000 << endl;
+        // result << "average waiting time: " << simobj.waitingTime << endl;
     }
     trace.close();
     result.close();
