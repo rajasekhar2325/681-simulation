@@ -3,12 +3,11 @@ runs = 1
 distribution = normal
 mean_service_time = 160
 mean_arrival_time = 10
-mean_timeout_time = 1600
+mean_timeout_time = 4000
 mean_think_time = 6000
 time_quantum = 90
-context_switching_time = 20
-max_no_threads = 150
-users = 100
+context_switching_time = 5
+max_no_threads = 100
+users = 200
 simulation_end = 12000
-
-
+buffer_size = 50

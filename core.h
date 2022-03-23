@@ -41,14 +41,14 @@ public:
     bool isFull()
     {
         if (bqu.size() < sz)
-            return true;
-        return false;
+            return false;
+        return true;
     }
 
     bool isEmpty()
     {
-        if (bqu.size() > 0)
-            return false;
-        return true;
+        if (bqu.size() == 0)
+            return true;
+        return false;
     }
 };

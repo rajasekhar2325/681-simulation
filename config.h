@@ -15,7 +15,7 @@ double context_switch_time;
 int max_no_threads;
 int no_of_users;
 int total_requests;
-
+int bsz;
 void read_config_file()
 {
     fstream config_file;
@@ -47,6 +47,8 @@ void read_config_file()
             no_of_users = stoi(line.substr(line.find('=') + 2));
         if (line.substr(0, line.find('=') - 1) == "simulation_end")
             total_requests = stoi(line.substr(line.find('=') + 2));
+        if (line.substr(0, line.find('=') - 1) == "buffer_size")
+            bsz = stoi(line.substr(line.find('=') + 2));
     }
     // cout << no_of_cores << endl;
     // cout << mean_serv_time << endl;
