@@ -16,6 +16,9 @@ int max_no_threads;
 int no_of_users;
 int total_requests;
 int bsz;
+int std_think;
+int std_service;
+int std_timeout;
 void read_config_file()
 {
     fstream config_file;
