@@ -16,6 +16,9 @@ int drops;
 //    Timeout = 4
 // };
 
+ofstream trace;
+ofstream result;
+
 double get_random(double metric, int flag)
 {
     if (!flag)
@@ -23,9 +26,9 @@ double get_random(double metric, int flag)
     random_device rd;
     default_random_engine generator(rd());
     // cout << dist_type << " " << dist_type.size() << endl;
-    if (dist_type == "constant")
+    if (dist_type == "uniform")
     {
-        normal_distribution<double> distribution(metric, 1);
+        uniform_real_distribution<double> distribution(metric, 1);
         return distribution(generator);
     }
     if (dist_type == "normal")
@@ -35,7 +38,7 @@ double get_random(double metric, int flag)
     }
     if (dist_type == "exponential")
     {
-        exponential_distribution<double> distribution(metric);
+        exponential_distribution<double> distribution(1/metric);
         return distribution(generator);
     }
     return 0;
@@ -54,7 +57,7 @@ public:
 
 void printlog(double simTime, type_of_event et, int reqID, int coreID, double servTime, double remTime)
 {
-    cout << left << setw(10) << simTime << setw(15) << eventName[et - 1] << setw(15) << reqID << setw(10) << coreID << setw(15) << servTime << setw(15) << remTime << endl;
+    trace << left << setw(15) << simTime << setw(15) << eventName[et - 1] << setw(15) << reqID << setw(10) << coreID << setw(15) << servTime << setw(15) << remTime << endl;
 }
 
 class Simulation
@@ -66,10 +69,12 @@ public:
     vector<core> coreList;
     threadpool tpool;
     double waitingTime;
+    double responseTime;
     Simulation(int cores, int no_of_req)
     {
         numReqCompleted = 0;
         waitingTime = 0.0;
+        responseTime = 0.0;
         coreList.reserve(cores);
         for (int i = 0; i < cores; i++)
             coreList.push_back(core(i));
@@ -78,7 +83,7 @@ public:
 
         for (int i = 1; i <= no_of_req; i++)
         {
-            request *temp = new request(i, get_random(mean_serv_time, 0), 0, get_random(mean_timeout_time, 0));
+            request *temp = new request(i, get_random(mean_serv_time, 1), 0, get_random(mean_timeout_time, 1));
             // cout << temp << "\n";
             eventList.push(event(Arrival, 0, temp));
         }
@@ -119,7 +124,7 @@ public:
             curr_event.thrd_id = tmp.thread_id;
             // cout << "assigned thread to event.  ThreadID " << curr_event.thrd_id << endl;
             int core_id = (tmp.thread_id) % no_of_cores;
-                printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
+            printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
 
             if (coreList[core_id].status == idle)
             {
@@ -189,7 +194,9 @@ public:
         numReqCompleted++;
         int core_id = (curr_event.thrd_id % no_of_cores);
         // cout << "handledeparture: currevent: " << curr_event.req->req_id << " " << coreList[core_id].simTime << endl;
+        // result << coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time  << endl;
         waitingTime += coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time; //raj + to -
+        responseTime += coreList[core_id].simTime - curr_event.req->req_arrival_time;                                   //raj + to -
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
         // cout << coreList[core_id].simTime << " " << curr_event.req->req_service_time << " " << curr_event.req->req_arrival_time << "\n";
         curr_event.req->req_rem_serv_time = 0;
@@ -205,10 +212,10 @@ public:
 
         tpool.addToPool(curr_event.thrd_id);
         curr_event.eventType = Arrival;
-        curr_event.req->req_arrival_time = curr_event.eventStartTime + get_random(mean_think_time, 0);
+        curr_event.req->req_arrival_time = curr_event.eventStartTime + get_random(mean_think_time, 1);
         curr_event.eventStartTime = curr_event.req->req_arrival_time;
-        curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time, 0);
-        curr_event.req->req_timeout_time = get_random(mean_timeout_time, 0);
+        curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time, 1);
+        curr_event.req->req_timeout_time = get_random(mean_timeout_time, 1);
         eventList.push(curr_event);
         // printeventList();
 
@@ -316,11 +323,16 @@ public:
     }
 };
 
+
+
 int main()
 {
-    freopen("log.txt", "w", stdout);
+    // freopen("log.txt", "w", stdout);
+result.open("result.txt");
+trace.open("log.txt");
+
     read_config_file();
-    cout << left << setw(10) << "Time" << setw(15) << "Event Type" << setw(15) << "Request ID" << setw(10) << "Core ID" << setw(15) << "Service Time" << setw(15) << "Remaining Time" << endl;
+    trace << left << setw(15) << "Time" << setw(15) << "Event Type" << setw(15) << "Request ID" << setw(10) << "Core ID" << setw(15) << "Service Time" << setw(15) << "Remaining Time" << endl;
     while (no_of_runs--)
     {
         Simulation simobj(no_of_cores, no_of_users);
@@ -330,7 +342,12 @@ int main()
             //     cout << "simtime on core " << i << " : " << simobj.coreList[i].simTime << endl;
             simobj.processNextEventOnCore();
         }
-        cout << "waiting time: " << simobj.waitingTime << endl;
+        // result << "waiting time: " << simobj.waitingTime << endl;
+        // result << "avg waiting time: " << simobj.waitingTime / total_requests << endl;
+        // result << "response time: " << simobj.responseTime << endl;
+        result << "avg response time: " << simobj.responseTime / total_requests << endl;
     }
+    trace.close();
+    result.close();
     return 0;
 }
