@@ -122,14 +122,14 @@ public:
                 coreList[core_id].status = busy;
                 type_of_event type;
                 double eventTime = 0.0;
-                if (coreList[core_id].simTime < curr_event.eventStartTime)
-                    coreList[core_id].simTime = curr_event.eventStartTime;
+                // if (coreList[core_id].simTime < curr_event.eventStartTime)
+                coreList[core_id].simTime = curr_event.eventStartTime;
 
                 if (tmp.req->req_rem_serv_time <= time_quantum)
                 {
                     type = Departure;
                     eventTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time;
-                    coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
+                    // coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
                     curr_event.req->req_rem_serv_time = 0;
                 }
                 else
@@ -137,7 +137,7 @@ public:
                     type = Quantum_done;
                     eventTime = coreList[core_id].simTime + time_quantum;
                     curr_event.req->req_rem_serv_time -= time_quantum;
-                    coreList[core_id].simTime += time_quantum;
+                    // coreList[core_id].simTime += time_quantum;
                 }
                 curr_event.eventType = type;
                 curr_event.eventStartTime = eventTime;
@@ -188,7 +188,10 @@ public:
         if(curr_event.eventStartTime-curr_event.req->req_arrival_time <= curr_event.req->req_timeout_time)
             goodRequests++;
         int core_id = (curr_event.thrd_id % no_of_cores);
-        waitingTime += coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time; //raj + to -
+        coreList[core_id].simTime =  curr_event.eventStartTime;
+        // waitingTime += coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time; //raj + to -
+        waitingTime += curr_event.eventStartTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time;
+        // result << curr_event.req->req_id << " " << coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time << "\n";
         responseTime += coreList[core_id].simTime - curr_event.req->req_arrival_time;                                   //raj + to -
         coreList[core_id].utilization += curr_event.req->req_service_time;
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
@@ -224,13 +227,13 @@ public:
                 coreList[core_id].status = busy;
                 type_of_event type;
                 double eventTime = 0.0;
-                if(coreList[core_id].simTime < e1.eventStartTime)
-                    coreList[core_id].simTime = e1.eventStartTime;
+                // if(coreList[core_id].simTime < e1.eventStartTime)
+                // coreList[core_id].simTime = e1.eventStartTime;
                 if (tmp.req->req_rem_serv_time <= time_quantum)
                 {
                     type = Departure;
                     eventTime = coreList[core_id].simTime + e1.req->req_rem_serv_time;
-                    coreList[core_id].simTime += e1.req->req_rem_serv_time;
+                    // coreList[core_id].simTime += e1.req->req_rem_serv_time;
                     e1.req->req_rem_serv_time = 0;
                 }
                 else
@@ -238,7 +241,7 @@ public:
                     type = Quantum_done;
                     eventTime = coreList[core_id].simTime + time_quantum;
                     e1.req->req_rem_serv_time -= time_quantum;
-                    coreList[core_id].simTime += time_quantum;
+                    // coreList[core_id].simTime += time_quantum;
                 }
                 e1.eventType = type;
                 e1.eventStartTime = eventTime;
@@ -254,7 +257,7 @@ public:
     // {
     // }
 
-// schedules event for job which is next to currently departing job
+// schedules next job in cpu queue which is next to currently departing job
     void scheduleNextEvent(int core_id)
     {
         thread tmp = coreList[core_id].jobQ.front();
@@ -264,14 +267,14 @@ public:
         {
             type = Departure;
             eventTime = coreList[core_id].simTime + tmp.req->req_rem_serv_time;
-            coreList[core_id].simTime += tmp.req->req_rem_serv_time;
+            // coreList[core_id].simTime += tmp.req->req_rem_serv_time;
             tmp.req->req_rem_serv_time = 0;
         }
         else
         {
             type = Quantum_done;
             eventTime = coreList[core_id].simTime + time_quantum;
-            coreList[core_id].simTime += time_quantum;
+            // coreList[core_id].simTime += time_quantum;
             tmp.req->req_rem_serv_time -= time_quantum;
         }
         coreList[core_id].simTime += context_switch_time;
@@ -294,6 +297,7 @@ public:
         event curr_event = eventList.top();
         eventList.pop();
         int core_id = (curr_event.thrd_id % no_of_cores);
+        coreList[core_id].simTime = curr_event.eventStartTime;
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
 
         // Moving front job in jobQ to back
@@ -304,8 +308,8 @@ public:
         // Processing the next job in jobQ
         tmp = coreList[core_id].jobQ.front();
 
-        if (coreList[core_id].simTime < tmp.req->req_arrival_time)
-            coreList[core_id].simTime = tmp.req->req_arrival_time;
+        // if (coreList[core_id].simTime < tmp.req->req_arrival_time)
+        //     coreList[core_id].simTime = tmp.req->req_arrival_time;
         curr_event.req = tmp.req;
         curr_event.thrd_id = tmp.thread_id; // This made SEGFAULT
         if (tmp.req->req_rem_serv_time <= time_quantum)
@@ -314,7 +318,7 @@ public:
             curr_event.eventType = Departure;
             curr_event.eventStartTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time;
             eventList.push(curr_event);
-            coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
+            // coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
             curr_event.req->req_rem_serv_time = 0;
         }
         else
@@ -323,7 +327,7 @@ public:
             curr_event.eventStartTime = coreList[core_id].simTime + time_quantum;
             curr_event.req->req_rem_serv_time -= time_quantum;
             eventList.push(curr_event);
-            coreList[core_id].simTime += time_quantum;
+            // coreList[core_id].simTime += time_quantum;
         }
         // adding context switching overhead
         coreList[core_id].simTime += context_switch_time;
@@ -366,7 +370,7 @@ trace.open("log.txt");
         result << "Bad throughput: " << ((double)(simobj.numReqCompleted - simobj.goodRequests)/avg_simulation_time)*1000 << endl;
         result << "Total throughput: " << ((double)(simobj.numReqCompleted)/avg_simulation_time)*1000 << endl;
         result << "Avg response time: " << (simobj.responseTime / total_requests)/(double)1000 << endl;
-        // result << "average waiting time: " << simobj.waitingTime << endl;
+        result << "Avg waiting time: " << (simobj.waitingTime/total_requests)/(double)1000 << endl;
     }
     trace.close();
     result.close();
