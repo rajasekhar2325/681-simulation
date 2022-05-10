@@ -24,7 +24,7 @@ double get_random(double metric, int flag)
     }
     if (dist_type == "normal")
     {
-        normal_distribution<double> distribution(metric, 1);
+        normal_distribution<double> distribution(metric, 20);
         return distribution(generator);
     }
     if (dist_type == "exponential")
@@ -50,6 +50,7 @@ public:
 //logging function
 void printlog(double simTime, type_of_event et, int reqID, int coreID, double servTime, double remTime)
 {
+    if (print_log)
     trace << left << setw(15) << simTime << setw(15) << eventName[et - 1] << setw(15) << reqID << setw(10) << coreID << setw(15) << servTime << setw(15) << remTime << endl;
 }
 
@@ -108,13 +109,19 @@ public:
 // Handles arrival event of request(user)
     void handleArrival()
     {
+
+        // get the first event in eventList
         event curr_event = eventList.top();
         eventList.pop();
+
+        // assign a thread to it
         if (tpool.poolNotEmpty())
         {
             thread tmp = tpool.getFreeThread(curr_event.req);
             curr_event.thrd_id = tmp.thread_id;
             int core_id = (tmp.thread_id) % no_of_cores;
+            coreList[core_id].simTime = curr_event.eventStartTime;
+
             printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
 
             if (coreList[core_id].status == idle)
@@ -122,31 +129,33 @@ public:
                 coreList[core_id].status = busy;
                 type_of_event type;
                 double eventTime = 0.0;
-                // if (coreList[core_id].simTime < curr_event.eventStartTime)
-                coreList[core_id].simTime = curr_event.eventStartTime;
 
+                // schedule departure event
                 if (tmp.req->req_rem_serv_time <= time_quantum)
                 {
                     type = Departure;
                     eventTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time;
-                    // coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
                     curr_event.req->req_rem_serv_time = 0;
                 }
+                // schedule quantum_done event
                 else
                 {
                     type = Quantum_done;
                     eventTime = coreList[core_id].simTime + time_quantum;
                     curr_event.req->req_rem_serv_time -= time_quantum;
-                    // coreList[core_id].simTime += time_quantum;
                 }
+
                 curr_event.eventType = type;
                 curr_event.eventStartTime = eventTime;
                 eventList.push(curr_event);
             }
+
             coreList[core_id].jobQ.push(tmp);
         }
+        // push to buffer as there are no available threads
         else
         {
+            // update drops is buffer is full and schedule a new request
             if (buf.isFull())
             {
                 drops++;
@@ -156,47 +165,42 @@ public:
                 curr_event.req->req_timeout_time = get_random(mean_timeout_time, 1);
                 eventList.push(curr_event);
             }
+            // push to buffer is buffer has space
             else
             {
-                buf.bqu.push(curr_event); //raj; event or req // when it will be processed?
+                buf.bqu.push(curr_event);
             }
         }
     }
 
-    // void printeventList()
-    // {
-    //     priority_queue<event, vector<event>, compare> temp = eventList;
-    //     while (!temp.empty())
-    //     {
-    //         cout << temp.top().req->req_id << ":" << (temp.top().thrd_id) % no_of_cores << " " << temp.top().eventType << " " << temp.top().eventStartTime << " " << temp.top().req->req_rem_serv_time << "||";
-    //         temp.pop();
-    //     }
-    //     cout << "\n";
-    // }
-
-
-// Handles departure event for the request
+    // Handles departure event for the request
     void handleDeparture()
     {
-        // increement request complete count by 1
-        // update waiting time
-        // schedule nextArrival of request
-        // free thread and assign the free thread to next request in request queue
+        /* 1. increment request complete count by 1
+        2. update waiting time
+        3. schedule nextArrival of request
+        4. free thread and assign the free thread to next request in request queue*/
+
+        // increment completed requests by 1
         event curr_event = eventList.top();
         eventList.pop();
         numReqCompleted++;
+
+        // update goodput
         if(curr_event.eventStartTime-curr_event.req->req_arrival_time <= curr_event.req->req_timeout_time)
             goodRequests++;
+
+        // update waiting time, response time
         int core_id = (curr_event.thrd_id % no_of_cores);
         coreList[core_id].simTime =  curr_event.eventStartTime;
-        // waitingTime += coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time; //raj + to -
         waitingTime += curr_event.eventStartTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time;
-        // result << curr_event.req->req_id << " " << coreList[core_id].simTime - curr_event.req->req_service_time - curr_event.req->req_arrival_time << "\n";
-        responseTime += coreList[core_id].simTime - curr_event.req->req_arrival_time;                                   //raj + to -
+        responseTime += coreList[core_id].simTime - curr_event.req->req_arrival_time;
         coreList[core_id].utilization += curr_event.req->req_service_time;
+
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
-        curr_event.req->req_rem_serv_time = 0;
-        coreList[core_id].jobQ.pop(); // raj: req?
+
+        coreList[core_id].jobQ.pop();
+
         // if jobQueue is not empty schedule nextEvent
         if (coreList[core_id].isEmpty())
         {
@@ -205,16 +209,18 @@ public:
         else
             scheduleNextEvent(core_id);
 
+        // add the departured event thread id to the free pool
         tpool.addToPool(curr_event.thrd_id);
+
+        // schedule a new request with some think time
         curr_event.eventType = Arrival;
         curr_event.req->req_arrival_time = curr_event.eventStartTime + get_random(mean_think_time, 1);
         curr_event.eventStartTime = curr_event.req->req_arrival_time;
         curr_event.req->req_service_time = curr_event.req->req_rem_serv_time = get_random(mean_serv_time, 1);
         curr_event.req->req_timeout_time = get_random(mean_timeout_time, 1);
         eventList.push(curr_event);
-        // printeventList();
 
-        // process buf, add buf top to thread and push to
+        // process buf, add buf top to thread and push to core queue
         if (not buf.isEmpty())
         {
             event e1 = buf.bqu.front();
@@ -227,37 +233,32 @@ public:
                 coreList[core_id].status = busy;
                 type_of_event type;
                 double eventTime = 0.0;
-                // if(coreList[core_id].simTime < e1.eventStartTime)
-                // coreList[core_id].simTime = e1.eventStartTime;
                 if (tmp.req->req_rem_serv_time <= time_quantum)
                 {
                     type = Departure;
-                    eventTime = coreList[core_id].simTime + e1.req->req_rem_serv_time;
-                    // coreList[core_id].simTime += e1.req->req_rem_serv_time;
+                    eventTime = coreList[core_id].simTime + e1.req->req_rem_serv_time + context_switch_time;
                     e1.req->req_rem_serv_time = 0;
                 }
                 else
                 {
                     type = Quantum_done;
-                    eventTime = coreList[core_id].simTime + time_quantum;
+                    eventTime = coreList[core_id].simTime + time_quantum + context_switch_time;
                     e1.req->req_rem_serv_time -= time_quantum;
-                    // coreList[core_id].simTime += time_quantum;
                 }
+
                 e1.eventType = type;
                 e1.eventStartTime = eventTime;
                 eventList.push(e1);
-                printlog(coreList[core_id].simTime, e1.eventType, e1.req->req_id, core_id, \
-                                                e1.req->req_service_time, e1.req->req_rem_serv_time);
+                printlog(coreList[core_id].simTime, e1.eventType, e1.req->req_id, core_id, e1.req->req_service_time, e1.req->req_rem_serv_time);
             }
+
             coreList[tmp.thread_id%no_of_cores].jobQ.push(tmp);
         }
     }
 
-    // void handleTimeout()
-    // {
-    // }
 
-// schedules next job in cpu queue which is next to currently departing job
+    // schedules next job in core queue which is next to currently departing job
+
     void scheduleNextEvent(int core_id)
     {
         thread tmp = coreList[core_id].jobQ.front();
@@ -266,38 +267,29 @@ public:
         if (tmp.req->req_rem_serv_time <= time_quantum)
         {
             type = Departure;
-            eventTime = coreList[core_id].simTime + tmp.req->req_rem_serv_time;
-            // coreList[core_id].simTime += tmp.req->req_rem_serv_time;
+            eventTime = coreList[core_id].simTime + tmp.req->req_rem_serv_time + context_switch_time;
             tmp.req->req_rem_serv_time = 0;
         }
         else
         {
             type = Quantum_done;
-            eventTime = coreList[core_id].simTime + time_quantum;
-            // coreList[core_id].simTime += time_quantum;
+            eventTime = coreList[core_id].simTime + time_quantum + context_switch_time;
             tmp.req->req_rem_serv_time -= time_quantum;
         }
-        coreList[core_id].simTime += context_switch_time;
+
         event next_event(type, eventTime, tmp.req);
         next_event.thrd_id = tmp.thread_id;
         eventList.push(next_event);
     }
 
-    // bool compare_float(double x, double y, double epsilon = 0.0000001f)
-    // {
-    //     if(fabs(x - y) < epsilon)
-    //         return false; //they are same
-    //     return true; //they are not same
-    // }
-
-// Handles context switching event(quantum done event) for the request
+    // Handles context switching event(quantum done event) for the request
     void handleContextSwitch()
     {
-        // logic for quantum done.
         event curr_event = eventList.top();
         eventList.pop();
         int core_id = (curr_event.thrd_id % no_of_cores);
         coreList[core_id].simTime = curr_event.eventStartTime;
+
         printlog(coreList[core_id].simTime, curr_event.eventType, curr_event.req->req_id, core_id, curr_event.req->req_service_time, curr_event.req->req_rem_serv_time);
 
         // Moving front job in jobQ to back
@@ -308,31 +300,23 @@ public:
         // Processing the next job in jobQ
         tmp = coreList[core_id].jobQ.front();
 
-        // if (coreList[core_id].simTime < tmp.req->req_arrival_time)
-        //     coreList[core_id].simTime = tmp.req->req_arrival_time;
         curr_event.req = tmp.req;
-        curr_event.thrd_id = tmp.thread_id; // This made SEGFAULT
+        curr_event.thrd_id = tmp.thread_id;
+
         if (tmp.req->req_rem_serv_time <= time_quantum)
         {
-            // scheduleDeparture event
             curr_event.eventType = Departure;
-            curr_event.eventStartTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time;
+            curr_event.eventStartTime = coreList[core_id].simTime + curr_event.req->req_rem_serv_time + context_switch_time;
             eventList.push(curr_event);
-            // coreList[core_id].simTime += curr_event.req->req_rem_serv_time;
             curr_event.req->req_rem_serv_time = 0;
         }
         else
         {
             curr_event.eventType = Quantum_done;
-            curr_event.eventStartTime = coreList[core_id].simTime + time_quantum;
+            curr_event.eventStartTime = coreList[core_id].simTime + time_quantum + context_switch_time;
             curr_event.req->req_rem_serv_time -= time_quantum;
             eventList.push(curr_event);
-            // coreList[core_id].simTime += time_quantum;
         }
-        // adding context switching overhead
-        coreList[core_id].simTime += context_switch_time;
-
-        // printeventList();
     }
 };
 
@@ -340,37 +324,41 @@ public:
 
 int main()
 {
-    // freopen("log.txt", "w", stdout);
-result.open("result.txt");
-trace.open("log.txt");
-
+    result.open("result.txt");
+    trace.open("log.txt");
     read_config_file();
+
     trace << left << setw(15) << "Time" << setw(15) << "Event Type" << setw(15) << "Request ID" << setw(10) << "Core ID" << setw(15) << "Service Time" << setw(15) << "Remaining Time" << endl;
+    
     while (no_of_runs--)
     {
         Simulation simobj(no_of_cores, no_of_users);
+
+        // simluation loop
         while (simobj.numReqCompleted < total_requests)
         {
             simobj.processNextEventOnCore();
         }
+
+        // calculating metrics
         double total_utilization = 0.0;
-        double total_simualtion_time = 0.0;
+        double total_simulation_time = 0.0;
         double avg_utilization = 0.0;
         double avg_simulation_time = 0.0;
         for(int i=0;i<no_of_cores;i++)
         {
             total_utilization += simobj.coreList[i].utilization;
-            total_simualtion_time += simobj.coreList[i].simTime;
+            total_simulation_time += simobj.coreList[i].simTime;
         }
-        avg_simulation_time = total_simualtion_time/(double)no_of_cores;
+        avg_simulation_time = total_simulation_time/(double)no_of_cores;
         avg_utilization = total_utilization/(double)no_of_cores;
-        result << "Avg server utilization is: " << avg_utilization/avg_simulation_time << endl;
-        result << "Total request drops: " << simobj.drops << endl;
-        result << "Good throughput: " << ((double)simobj.goodRequests/avg_simulation_time)*1000 << endl;
-        result << "Bad throughput: " << ((double)(simobj.numReqCompleted - simobj.goodRequests)/avg_simulation_time)*1000 << endl;
-        result << "Total throughput: " << ((double)(simobj.numReqCompleted)/avg_simulation_time)*1000 << endl;
-        result << "Avg response time: " << (simobj.responseTime / total_requests)/(double)1000 << endl;
-        result << "Avg waiting time: " << (simobj.waitingTime/total_requests)/(double)1000 << endl;
+        result << "Avg_server_utilization: " << avg_utilization/avg_simulation_time << endl;
+        result << "Total_request_drops: " << simobj.drops << endl;
+        result << "Good_throughput: " << ((double)simobj.goodRequests/avg_simulation_time)*1000 << endl;
+        result << "Bad_throughput: " << ((double)(simobj.numReqCompleted - simobj.goodRequests)/avg_simulation_time)*1000 << endl;
+        result << "Total_throughput: " << ((double)(simobj.numReqCompleted)/avg_simulation_time)*1000 << endl;
+        result << "Avg_response_time: " << (simobj.responseTime / total_requests)/(double)1000 << endl;
+        result << "Avg_waiting_time: " << (simobj.waitingTime/total_requests)/(double)1000 << endl;
     }
     trace.close();
     result.close();
