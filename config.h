@@ -19,6 +19,8 @@ int bsz;
 int std_think;
 int std_service;
 int std_timeout;
+int print_log;
+
 void read_config_file()
 {
     fstream config_file;
@@ -52,9 +54,7 @@ void read_config_file()
             total_requests = stoi(line.substr(line.find('=') + 2));
         if (line.substr(0, line.find('=') - 1) == "buffer_size")
             bsz = stoi(line.substr(line.find('=') + 2));
+        if (line.substr(0, line.find('=') - 1) == "print_log")
+            print_log = stoi(line.substr(line.find('=') + 2));
     }
-    // cout << no_of_cores << endl;
-    // cout << mean_serv_time << endl;
-    // cout << dist_type <<  endl;
-    // cout << context_switch_time << endl;
 }
